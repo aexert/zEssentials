@@ -68,6 +68,8 @@ public class ZUser extends ZUtils implements User {
     private final Selection selection = new ZSelection();
     private WorldEditTask worldEditTask;
     private String name;
+    // DEPRECATED: Remove this field in the future, use teleports map instead
+    @Deprecated
     private TeleportRequest teleportRequest;
     private User targetUser;
     private BigDecimal targetAmount;
@@ -247,17 +249,29 @@ public class ZUser extends ZUtils implements User {
 
     @Override
     public Collection<TeleportRequest> getTeleportRequests() {
+        // Clean up expired requests
+        this.teleports.entrySet().removeIf(entry -> !entry.getValue().isValid());
         return this.teleports.values();
     }
 
     @Override
     public TeleportRequest getTeleportRequest() {
-        return teleportRequest;
+        // For backward compatibility, return the oldest valid request if any
+        this.teleports.entrySet().removeIf(entry -> !entry.getValue().isValid());
+        return this.teleports.values().stream().findFirst().orElse(null);
+    }
+
+    public TeleportRequest getTeleportRequestFrom(UUID fromUserId) {
+        TeleportRequest req = this.teleports.get(fromUserId);
+        if (req != null && req.isValid()) return req;
+        return null;
     }
 
     @Override
     public void setTeleportRequest(TeleportRequest teleportRequest) {
-        this.teleportRequest = teleportRequest;
+        if (teleportRequest == null) return;
+        this.teleports.put(teleportRequest.getFromUser().getUniqueId(), teleportRequest);
+        this.teleportRequest = teleportRequest; // legacy
     }
 
     @Override
